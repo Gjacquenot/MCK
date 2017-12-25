@@ -36,6 +36,13 @@ class MCK():
         if self.m < 0.0:
             raise Exception
 
+    def __repr__(self):
+        return 'M={0} C={1} K={2} T={3:4f} s'.format(self.m, self.c, self.k, self.get_period())
+
+    def get_period(self):
+        # omega = 2 * np.pi * f = 2 * np.pi / t = np.sqrt(self.k/self.m)
+        return 2 * np.pi / np.sqrt(self.k/self.m)
+
     def derive(self, t, x, **kwargs):
         fext = kwargs.get('fext', 0)
         df = [0.0, 0.0]
@@ -47,10 +54,11 @@ class MCK():
 class WB():
     def __init__(self, **kwargs):
         """
-            - disp      = x[0];     % system displacement
-            - vel       = x[1];     % system velocity
-            - zeta      = x[2];     % hysteretic component
-            - eps       = x[3];     % hysteretic energy
+        Bouc Wen without degradation nor pinching
+            - disp      = x[0];  # system displacement
+            - vel       = x[1];  # system velocity
+            - zeta      = x[2];  # hysteretic component
+            - eps       = x[3];  # hysteretic energy
         """
         self.m = kwargs.get('m', 1)
         self.c = kwargs.get('c', 0)
@@ -67,6 +75,11 @@ class WB():
         self.names = ['x', 'v', 'zeta', 'eps']
         self.n_states = len(self.names)
 
+    def __repr__(self):
+        return 'M={0} C={1} K={2} α={3} D={4} A={5} β={6} γ={7} n={8}'.format(
+                    self.m, self.c, self.k,
+                    self.alpha, self.D, self.A,
+                    self.beta, self.gamma, self.n)
 
     def derive(self, t, x, **kwargs):
 
@@ -86,6 +99,72 @@ class WB():
         dxdt[1] = (fext - self.c * x[1] - self.k * (self.alpha * x[0] + (1 - self.alpha) * self.D * x[2])) / self.m
         # h*( x1 - nueps*(beta*abs(x1)*(abs(z)^(n-1))*z + gamma*x1*(abs(z)^n) ) ) / etaeps;
         dxdt[2] = 1/self.D * (self.A * x[1] - self.beta * np.abs(x[1]) * np.abs(x[2]) ** (self.n - 1) * x[2] - self.gamma * x[1] * np.abs(x[2]) ** self.n)
+        # (1-alpha)*(w0^2)*x1*z;
+        dxdt[3] = (1-self.alpha) * self.k / self.m * x[1] * x[2]
+        return np.array(dxdt)
+
+
+class WB1():
+    def __init__(self, **kwargs):
+        """
+        Bouc Wen with degradation no pinching
+            - disp      = x[0];  # system displacement
+            - vel       = x[1];  # system velocity
+            - zeta      = x[2];  # hysteretic component
+            - eps       = x[3];  # hysteretic energy
+        """
+        self.m = kwargs.get('m', 1)
+        self.c = kwargs.get('c', 0)
+
+        # α=0.5; k=1; D=1; A=1; β=0.5; γ= −1.5; n=2
+        self.alpha = kwargs.get('alpha', 0.5)
+        self.k = kwargs.get('k', 1)
+        self.D = kwargs.get('D', 1)
+        self.A = kwargs.get('A', 1)
+        self.beta = kwargs.get('beta', 0.5)
+        self.gamma = kwargs.get('gamma', -1.5)
+        self.n = kwargs.get('n', 2)
+
+
+        self.nu0 = kwargs.get('nu0', 0.0)               # strength degradation
+        self.A0 = kwargs.get('A0', 0.0)                 # hysteresis amplitude
+        self.eta0 = kwargs.get('eta0', 1.0)             # stiffness degradation
+        self.delta_nu = kwargs.get('delta_nu', 0.0)     # strength degradation parameter
+        self.delta_A = kwargs.get('delta_A', 0.0)       # control parameter of 'A' with respect to the energy
+        self.delta_eta = kwargs.get('delta_eta', 0.0)   # stiffness degradation parameter
+
+        self.names = ['x', 'v', 'zeta', 'eps']
+        self.n_states = len(self.names)
+
+    def __repr__(self):
+        return 'M={0} C={1} K={2} α={3} D={4} A={5} β={6} γ={7} n={8}'.format(
+                    self.m, self.c, self.k,
+                    self.alpha, self.D, self.A,
+                    self.beta, self.gamma, self.n)
+
+    def derive(self, t, x, **kwargs):
+
+        # m x'' + c x' + kHys(x,t) = Fext(t)
+        #
+        # x'' = 1/m( Fext(t) - c x' - kHys(x,t))
+        #
+        # kHys(x,t) = alpha * k * x + (1 - alpha) * D * k * z(t)
+        # z'(t) = + 1/D * (A * x'(t) - beta * abs(x'(t)) * abs(z(t))**(n-1) * z(t) - gamma * x'(t) * abs(z(t))**n)
+
+        fext = kwargs.get('fext', 0)
+        dxdt = [0.0, 0.0, 0.0, 0.0]
+        w0 = np.sqrt(self.k / self.m);              # Natural frequency (rad/s)
+        # nueps, Aeps, etaeps                       # Degradation functions
+        nueps  = self.nu0  + self.delta_nu  * x[3]  # strength degradation function
+        Aeps   = self.A0   - self.delta_A   * x[3]  # degradation function
+        etaeps = self.eta0 + self.delta_eta * x[3]  # stiffness degradation function
+
+        # x1
+        dxdt[0] = x[1]
+        # exci - 2*xi*w0*x1 - alpha*(w0^2)*x0 - (1-alpha)*(w0^2)*x2;
+        dxdt[1] = (fext - self.c * x[1] - self.k * (self.alpha * x[0] + (1 - self.alpha) * self.D * x[2])) / self.m
+        # h*( x1 - nueps*(beta*abs(x1)*(abs(z)^(n-1))*z + gamma*x1*(abs(z)^n) ) ) / etaeps;
+        dxdt[2] = 1/self.D * (Aeps * x[1] - nueps * (self.beta * np.abs(x[1]) * np.abs(x[2]) ** (self.n-1) * x[2] + self.gamma * x[1] * np.abs(x[2]) ** self.n)) / etaeps
         # (1-alpha)*(w0^2)*x1*z;
         dxdt[3] = (1-self.alpha) * self.k / self.m * x[1] * x[2]
         return np.array(dxdt)
@@ -142,7 +221,8 @@ class Integrator():
 
 def plot_states(states, **kwargs):
     import matplotlib.pyplot as plt
-    external_data = kwargs.get('external_data',{})
+    external_data = kwargs.get('external_data', {})
+    title = kwargs.get('title', 'State variables')
 
     # Note that using plt.subplots below is equivalent to using
     # fig = plt.figure and then ax = fig.add_subplot(111)
@@ -151,7 +231,7 @@ def plot_states(states, **kwargs):
         ax.plot(states['t'], states[n], label=n)
     for k in external_data:
         ax.plot(external_data[k][:, 0], external_data[k][:, 1], label=k)
-    ax.set(xlabel='time (s)', ylabel='states', title='State variables')
+    ax.set(xlabel='time (s)', ylabel='states', title=title)
     ax.grid()
     ax.legend(loc='upper right')
     # fig.savefig("test.png")
@@ -173,19 +253,24 @@ def plot_f_wrt_x(states, **kwargs):
 
 
 def demo(system=MCK, **kwargs):
-    mck = system(m=20, c=1)
+    m = kwargs.get('m', 1)
+    c = kwargs.get('c', 0)
+    k = kwargs.get('k', 1)
     t_stop = kwargs.get('t_stop', 1000)
     dt = kwargs.get('dt', 0.1)
-    initial_states = kwargs.get('initial_states', [0.0, 0.0])
+    x0 = kwargs.get('x0', 0.0)
+    v0 = kwargs.get('v0', 0.0)
+    initial_states = [x0, v0]
+    instance = system(m=m, c=c, k=k)
     #
     t = np.arange(0, t_stop + dt, dt)
     d = 1 - np.arange(0, t_stop + dt, dt)/t_stop
-    f = np.sin(2*np.pi*t/(t_stop/50)) * d
-    tf  = np.concatenate((np.vstack(t), np.vstack(f)),axis=1)
-    integrator = Integrator(mck, external_data={'fext': tf})
+    f = 0 * np.sin(2*np.pi*t/(t_stop/50)) * d
+    tf = np.concatenate((np.vstack(t), np.vstack(f)),axis=1)
+    integrator = Integrator(instance, external_data={'fext': tf})
     states = integrator.integ(x0=initial_states, t_end=t_stop, dt=dt)
     #
-    plot_states(states, external_data={'fext': tf})
+    plot_states(states, external_data={'fext': tf}, title=str(instance))
     plot_f_wrt_x(states, external_data={'fext': tf})
 
 
@@ -195,6 +280,12 @@ def get_parser():
     pa = parser.add_argument
     pa('-s', '--system', help='Name of the system to simulate (default: will display a demo)', default='')
     pa('--dt', type=float, help='', default=0.1)
+    pa('--tstop', type=float, help='', default=10.0)
+    pa('-m', type=float, help='', default=1.0)
+    pa('-c', type=float, help='', default=0.0)
+    pa('-k', type=float, help='', default=1.0)
+    pa('--x0', type=float, help='', default=0.0)
+    pa('--v0', type=float, help='', default=0.0)
     return parser
 
 
@@ -203,9 +294,21 @@ def main(cli=None):
     args = parser.parse_args(cli)
     if args.system:
         if args.system.lower() == 'wb':
-            demo(system=WB)
+            system = WB
+        elif args.system.lower() == 'wb1':
+            system = WB1
         elif args.system.lower() == 'mck':
-            demo(system=MCK)
+            system = MCK
+        else:
+            raise Exception
+        demo(system=system,
+             t_stop=args.tstop,
+             dt=args.dt,
+             m=args.m,
+             c=args.c,
+             k=args.k,
+             x0=args.x0,
+             v0=args.v0)
     else:
         demo()
 
