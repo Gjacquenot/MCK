@@ -55,10 +55,10 @@ class WB():
     def __init__(self, **kwargs):
         """
         Bouc Wen without degradation nor pinching
-            - disp      = x[0];  # system displacement
-            - vel       = x[1];  # system velocity
-            - zeta      = x[2];  # hysteretic component
-            - eps       = x[3];  # hysteretic energy
+            - disp   = x[0];  # system displacement
+            - vel    = x[1];  # system velocity
+            - zeta   = x[2];  # hysteretic component
+            - eps    = x[3];  # hysteretic energy
         """
         self.m = kwargs.get('m', 1)
         self.c = kwargs.get('c', 0)
@@ -92,7 +92,7 @@ class WB():
 
         fext = kwargs.get('fext', 0)
         dxdt = [0.0, 0.0, 0.0, 0.0]
-        w0 = np.sqrt(self.k / self.m);  # Natural frequency (rad/s)
+        w0 = np.sqrt(self.k / self.m)  # Natural frequency (rad/s)
         # x1
         dxdt[0] = x[1]
         # exci - 2*xi*w0*x1 - alpha*(w0^2)*x0 - (1-alpha)*(w0^2)*x2;
@@ -108,10 +108,10 @@ class WB1():
     def __init__(self, **kwargs):
         """
         Bouc Wen with degradation no pinching
-            - disp      = x[0];  # system displacement
-            - vel       = x[1];  # system velocity
-            - zeta      = x[2];  # hysteretic component
-            - eps       = x[3];  # hysteretic energy
+            - disp   = x[0];  # system displacement
+            - vel    = x[1];  # system velocity
+            - zeta   = x[2];  # hysteretic component
+            - eps    = x[3];  # hysteretic energy
         """
         self.m = kwargs.get('m', 1)
         self.c = kwargs.get('c', 0)
@@ -174,13 +174,21 @@ class Integrator():
     def __init__(self, system, external_data={}):
         self.system = system
         self.external_data = external_data
+        self.dict_algorithm = {'euler': self.euler,
+                               'rk22': self.rk22,
+                               'rk44': self.rk44,
+                               'rk45': self.rk45}
+
+    @staticmethod
+    def get_integration_algorithms():
+        return ('euler', 'rk22', 'rk44', 'rk45')
 
     def get_external_data(self, t):
         return {k: np.interp(t, self.external_data[k][:, 0],
                                 self.external_data[k][:, 1]) for k in self.external_data}
 
-    def integ(self, x0, dt=1, t_end=1, t_start=0.0):
-        integration_scheme = self.rk44
+    def integ(self, x0, dt=1, t_end=1, t_start=0.0, algorithm='rk44'):
+        integration_scheme = self.dict_algorithm[algorithm]
         self.dt = dt
         if len(x0) < self.system.n_states:
             x0 += [0.0] * (self.system.n_states - len(x0))
@@ -202,6 +210,19 @@ class Integrator():
         x1 = x0 + dt * F(t, x0, **ext_t0)
         return x1
 
+    def rk22(self, t, x0):
+        """
+        explicit runge kutta 2*2
+        """
+        dt = self.dt
+        F = self.system.derive
+        ext_t0 = self.get_external_data(t)
+        ext_t1 = self.get_external_data(t + dt/2.0)
+        k1 = dt * F(t, x0, **ext_t0)
+        k2 = dt * F(t + dt/2.0, x0 + k1/2.0, **ext_t1)
+        x1 = x0 + k2
+        return x1
+
     def rk44(self, t, x0):
         """
         explicit runge kutta 4*4
@@ -218,14 +239,68 @@ class Integrator():
         x1 = x0 + (k1 + 2.0 * k2 + 2.0 * k3 + k4)/6.0  # + error O(dt^5)
         return x1
 
+    def rk45(self, t, x0):
+        """
+        explicit Runge–Kutta–Fehlberg method (with two methods of orders 5 and 4)
+        """
+        C2 = +1.0/4.0
+        A21 = +1.0/4.0
+
+        C3 = +3.0/8.0
+        A31 = +3.0/32.0
+        A32 = +9.0/32.0
+
+        C4 = +12.0/13.0
+        A41 = +1932.0/2197.0
+        A42 = -7200.0/2197.0
+        A43 = +7296.0/2197.0
+
+        C5 = +1.0
+        A51 = +439.0/216.0
+        A52 = -8.0
+        A53 = +3680.0/513.0
+        A54 = -845.0/4104.0
+
+        C6 = +1.0/2.0
+        A61 = -8.0/27.0
+        A62 = +2.0
+        A63 = -3544.0/2565.0
+        A64 = +1859.0/4104.0
+        A65 = -11.0/40.0
+
+        CY1 = +25.0/216.0
+        CY3 = +1408.0/2565.0
+        CY4 = +2197.0/4104.0
+        CY5 = -1.0/5.0
+
+        CE1 = +16.0/135.0-CY1
+        CE3 = +6656.0/12825.0-CY3
+        CE4 = +28561.0/56430.0-CY4
+        CE5 = -9.0/50.0-CY5
+        CE6 = +2.0/55.0
+
+        dt = self.dt
+        F = self.system.derive
+        ext_t0 = self.get_external_data(t)
+        ext_t2 = self.get_external_data(t + dt * C2)
+        ext_t3 = self.get_external_data(t + dt * C3)
+        ext_t4 = self.get_external_data(t + dt * C4)
+        ext_t5 = self.get_external_data(t + dt * C5)
+        ext_t6 = self.get_external_data(t + dt * C6)
+        k1 = dt * F(t, x0, **ext_t0)
+        k2 = dt * F(t + C2 * dt, x0 + A21 * k1, **ext_t2)
+        k3 = dt * F(t + C3 * dt, x0 + A31 * k1 + A32 * k2, **ext_t3)
+        k4 = dt * F(t + C4 * dt, x0 + A41 * k1 + A42 * k2 + A43 * k3, **ext_t4)
+        k5 = dt * F(t + C5 * dt, x0 + A51 * k1 + A52 * k2 + A53 * k3 + A54 * k4, **ext_t5)
+        x1 = x0 + (CY1 * k1 + CY3 * k3 + CY4 * k4 + CY5 * k5)
+        error = (CE1 * k1 + CE3 * k3 + CE4 * k4 + CE5 * k5 + CE6 * k6)
+        return x1
+
 
 def plot_states(states, **kwargs):
     import matplotlib.pyplot as plt
     external_data = kwargs.get('external_data', {})
     title = kwargs.get('title', 'State variables')
-
-    # Note that using plt.subplots below is equivalent to using
-    # fig = plt.figure and then ax = fig.add_subplot(111)
     fig, ax = plt.subplots()
     for n in states.dtype.names[1:]:
         ax.plot(states['t'], states[n], label=n)
@@ -236,6 +311,7 @@ def plot_states(states, **kwargs):
     ax.legend(loc='upper right')
     # fig.savefig("test.png")
     plt.show()
+    return fig
 
 
 def plot_f_wrt_x(states, **kwargs):
@@ -253,6 +329,7 @@ def plot_f_wrt_x(states, **kwargs):
 
 
 def demo(system=MCK, **kwargs):
+    integration_algorithm = kwargs.get('integrator', 'rk44')
     m = kwargs.get('m', 1)
     c = kwargs.get('c', 0)
     k = kwargs.get('k', 1)
@@ -268,7 +345,8 @@ def demo(system=MCK, **kwargs):
     f = 0 * np.sin(2*np.pi*t/(t_stop/50)) * d
     tf = np.concatenate((np.vstack(t), np.vstack(f)),axis=1)
     integrator = Integrator(instance, external_data={'fext': tf})
-    states = integrator.integ(x0=initial_states, t_end=t_stop, dt=dt)
+    states = integrator.integ(x0=initial_states, t_end=t_stop, dt=dt,
+                              algorithm=integration_algorithm)
     #
     plot_states(states, external_data={'fext': tf}, title=str(instance))
     plot_f_wrt_x(states, external_data={'fext': tf})
@@ -278,7 +356,10 @@ def get_parser():
     import argparse
     parser = argparse.ArgumentParser(description='Process some integers.')
     pa = parser.add_argument
-    pa('-s', '--system', help='Name of the system to simulate (default: will display a demo)', default='')
+    pa('-s', '--system', help='Name of the system to simulate (default: will display a demo)',
+                         default='')
+    pa('-i', '--integrator',
+       help='Integration algorithm. Available algortihms are {0}'.format(', '.join(Integrator.get_integration_algorithms())), default='rk44')
     pa('--dt', type=float, help='', default=0.1)
     pa('--tstop', type=float, help='', default=10.0)
     pa('-m', type=float, help='', default=1.0)
@@ -302,6 +383,7 @@ def main(cli=None):
         else:
             raise Exception
         demo(system=system,
+             integrator=args.integrator,
              t_stop=args.tstop,
              dt=args.dt,
              m=args.m,
