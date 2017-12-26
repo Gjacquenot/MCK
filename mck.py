@@ -26,7 +26,7 @@ class MCK():
         #   x'' + c/m x' + k/m x  = Fext(t)/m
         #
         # [x' ]   [[0    ,    1]]   [x ]   [         0 ]
-        # |   | = ||           || * |  | + |           |
+        # |   | = |           | * |  | + |           |
         # [x'']   [[-k/m , -c/m]]   [x']   [ Fext(t)/m ]
         self.m = kwargs.get('m', 1)
         self.c = kwargs.get('c', 0)
@@ -177,11 +177,14 @@ class Integrator():
         self.dict_algorithm = {'euler': self.euler,
                                'rk22': self.rk22,
                                'rk44': self.rk44,
-                               'rk45': self.rk45}
+                               'rk45': self.rk45Fehlberg,
+                               'rk45': self.rk45Fehlberg,
+                               'rk45CashKarp': self.rk45CashKarp,
+                               'rk45DormandPrince': self.rk45DormandPrince}
 
     @staticmethod
     def get_integration_algorithms():
-        return ('euler', 'rk22', 'rk44', 'rk45')
+        return ('euler', 'rk22', 'rk44', 'rk45', 'rk45Fehlberg', 'rk45CashKarp', 'rk45DormandPrince')
 
     def get_external_data(self, t):
         return {k: np.interp(t, self.external_data[k][:, 0],
@@ -239,7 +242,7 @@ class Integrator():
         x1 = x0 + (k1 + 2.0 * k2 + 2.0 * k3 + k4)/6.0  # + error O(dt^5)
         return x1
 
-    def rk45(self, t, x0):
+    def rk45Fehlberg(self, t, x0):
         """
         explicit Runge–Kutta–Fehlberg method (with two methods of orders 5 and 4)
         """
@@ -295,6 +298,26 @@ class Integrator():
         x1 = x0 + (CY1 * k1 + CY3 * k3 + CY4 * k4 + CY5 * k5)
         error = (CE1 * k1 + CE3 * k3 + CE4 * k4 + CE5 * k5 + CE6 * k6)
         return x1
+
+    def rk45CashKarp(self, t, x0):
+        """
+        explicit Runge–Kutta–Cash-Karp method (with two methods of orders 5 and 4)
+
+        0    |
+        1/5  |        1/5
+        3/10 |       3/40 |    9/40
+        3/5  |       3/10 |   −9/10 |         6/5
+        1    |     −11/54 |     5/2 |      −70/27 |        35/27
+        7/8  | 1631/55296 | 175/512 |   575/13824 | 44275/110592 |  253/4096 |
+        --------------------------------------------------------------------------------
+             | 37/378     |       0 |     250/621 |      125/594 |         0 | 512/1771
+             | 2825/27648 |       0 | 18575/48384 |  13525/55296 | 277/14336 | 1/4
+        """
+        raise NotImplementedError
+
+    def rk45DormandPrince(self, t, x0):
+        raise NotImplementedError
+
 
 
 def plot_states(states, **kwargs):
