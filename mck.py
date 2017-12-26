@@ -178,7 +178,7 @@ class Integrator():
                                'rk22': self.rk22,
                                'rk44': self.rk44,
                                'rk45': self.rk45Fehlberg,
-                               'rk45': self.rk45Fehlberg,
+                               'rk45Fehlberg': self.rk45Fehlberg,
                                'rk45CashKarp': self.rk45CashKarp,
                                'rk45DormandPrince': self.rk45DormandPrince}
 
