@@ -22,11 +22,11 @@ import numpy as np
 
 class MCK():
     def __init__(self, **kwargs):
-        # m x'' + c x' + k x  = Fext(t)
-        #   x'' + c/m x' + k/m x  = Fext(t)/m
+        # m x'' + c x' + k x = Fext(t)
+        #   x'' + c/m x' + k/m x = Fext(t)/m
         #
         # [x' ]   [[0    ,    1]]   [x ]   [         0 ]
-        # |   | = |           | * |  | + |           |
+        # |   | =  |           |  * |  | + |           |
         # [x'']   [[-k/m , -c/m]]   [x']   [ Fext(t)/m ]
         self.m = kwargs.get('m', 1)
         self.c = kwargs.get('c', 0)
@@ -55,15 +55,15 @@ class WB():
     def __init__(self, **kwargs):
         """
         Bouc Wen without degradation nor pinching
-            - disp   = x[0];  # system displacement
-            - vel    = x[1];  # system velocity
-            - zeta   = x[2];  # hysteretic component
-            - eps    = x[3];  # hysteretic energy
+            - disp  = x[0];  # system displacement
+            - vel   = x[1];  # system velocity
+            - zeta  = x[2];  # hysteretic component
+            - eps   = x[3];  # hysteretic energy
         """
         self.m = kwargs.get('m', 1)
         self.c = kwargs.get('c', 0)
 
-        # α=0.5; k=1; D=1; A=1; β=0.5; γ= −1.5; n=2
+        # α=0.5; k=1; D=1; A=1; β=0.5; γ= -1.5; n=2
         self.alpha = kwargs.get('alpha', 0.5)
         self.k = kwargs.get('k', 1)
         self.D = kwargs.get('D', 1)
@@ -108,15 +108,15 @@ class WB1():
     def __init__(self, **kwargs):
         """
         Bouc Wen with degradation no pinching
-            - disp   = x[0];  # system displacement
-            - vel    = x[1];  # system velocity
-            - zeta   = x[2];  # hysteretic component
-            - eps    = x[3];  # hysteretic energy
+            - disp  = x[0];  # system displacement
+            - vel   = x[1];  # system velocity
+            - zeta  = x[2];  # hysteretic component
+            - eps   = x[3];  # hysteretic energy
         """
         self.m = kwargs.get('m', 1)
         self.c = kwargs.get('c', 0)
 
-        # α=0.5; k=1; D=1; A=1; β=0.5; γ= −1.5; n=2
+        # α=0.5; k=1; D=1; A=1; β=0.5; γ= -1.5; n=2
         self.alpha = kwargs.get('alpha', 0.5)
         self.k = kwargs.get('k', 1)
         self.D = kwargs.get('D', 1)
@@ -155,8 +155,8 @@ class WB1():
         dxdt = [0.0, 0.0, 0.0, 0.0]
         w0 = np.sqrt(self.k / self.m);              # Natural frequency (rad/s)
         # nueps, Aeps, etaeps                       # Degradation functions
-        nueps  = self.nu0  + self.delta_nu  * x[3]  # strength degradation function
-        Aeps   = self.A0   - self.delta_A   * x[3]  # degradation function
+        nueps = self.nu0  + self.delta_nu  * x[3]  # strength degradation function
+        Aeps  = self.A0   - self.delta_A   * x[3]  # degradation function
         etaeps = self.eta0 + self.delta_eta * x[3]  # stiffness degradation function
 
         # x1
@@ -306,17 +306,165 @@ class Integrator():
         0    |
         1/5  |        1/5
         3/10 |       3/40 |    9/40
-        3/5  |       3/10 |   −9/10 |         6/5
-        1    |     −11/54 |     5/2 |      −70/27 |        35/27
+        3/5  |       3/10 |   -9/10 |         6/5
+        1    |     -11/54 |     5/2 |      -70/27 |        35/27
         7/8  | 1631/55296 | 175/512 |   575/13824 | 44275/110592 |  253/4096 |
         --------------------------------------------------------------------------------
              | 37/378     |       0 |     250/621 |      125/594 |         0 | 512/1771
              | 2825/27648 |       0 | 18575/48384 |  13525/55296 | 277/14336 | 1/4
         """
-        raise NotImplementedError
+
+        c2 = 1.0/5.0
+        c3 = 3.0/10.0
+        c4 = 3.0/5.0
+        c5 = 1.0
+        c6 = 7.0/8.0
+
+        a21 = +1.0/5.0
+
+        a31 = +3.0/40.0
+        a32 = +9.0/40.0
+
+        a41 = +3.0/10.0
+        a42 = -9.0/10.0
+        a43 = +6.0/5.0
+
+        a51 = -11.0/54.0
+        a52 = +5.0/2.0
+        a53 = -70.0/27.0
+        a54 = +35.0/27.0
+
+        a61 = +1631.0/55296.0
+        a62 = +175.0/512.0
+        a63 = +575.0/13824.0
+        a64 = +44275.0/110592.0
+        a65 = +253.0/4096.0
+
+        b1 = 37.0/378.0
+        b2 = 0.0
+        b3 = 250.0/621.0
+        b4 = 125.0/594.0
+        b5 = 0.0
+        b6 = 512.0/1771.0
+
+        b1p = 2825.0/27648.0
+        b2p = 0.0
+        b3p = 18575.0/48384.0
+        b4p = 13525.0/55296.0
+        b5p = 277.0/14336.0
+        b6p = 1.0/4.0
+
+        dt = self.dt
+        F = self.system.derive
+
+        ext_t1 = self.get_external_data(t)
+        ext_t2 = self.get_external_data(t + dt * c2)
+        ext_t3 = self.get_external_data(t + dt * c3)
+        ext_t4 = self.get_external_data(t + dt * c4)
+        ext_t5 = self.get_external_data(t + dt * c5)
+        ext_t6 = self.get_external_data(t + dt * c6)
+
+        k1 = F(t, x0, **ext_t1)
+        k2 = F(t + c2 * dt, x0 + dt * (a21 * k1), **ext_t2)
+        k3 = F(t + c3 * dt, x0 + dt * (a31 * k1 + a32 * k2), **ext_t3)
+        k4 = F(t + c4 * dt, x0 + dt * (a41 * k1 + a42 * k2 + a43 * k3), **ext_t4)
+        k5 = F(t + dt, x0 + dt * (a51 * k1 + a52 * k2 + a53 * k3 + a54 * k4), **ext_t5)
+        k6 = F(t + c6 * dt, x0 + dt * (a61 * k1 + a62 * k2 + a63 * k3 + a64 * k4 + a65 * k5), **ext_t6)
+
+        error = abs((b1-b1p)*k1+(b3-b3p)*k3+(b4-b4p)*k4+(b5-b5p)*k5+
+                    (b6-b6p)*k6)
+
+        x1 = x0 + dt * (b1 * k1 + b3 * k3 + b4 * k4 + b5 * k5 + b6 * k6)
+        return x1
 
     def rk45DormandPrince(self, t, x0):
-        raise NotImplementedError
+        """
+        Dormand and Prince chose the coefficients of their method to minimize the error of the fifth-order solution. This is the main difference with the Fehlberg method, which was constructed so that the fourth-order solution has a small error. For this reason, the Dormand–Prince method is more suitable when the higher-order solution is used to continue the integration, a practice known as local extrapolation (Shampine 1986; Hairer, Nørsett & Wanner 2008, pp. 178–179).
+
+        0    |
+        1/5  |        1/5
+        3/10 |       3/40 | 9/40
+        4/5  |      44/45 | -56/15      | 32/9
+        8/9  | 19372/6561 | -25360/2187 | 64448/6561 | -212/729
+        1    |  9017/3168 |     -355/33 | 46732/5247 | 49/176  |   -5103/18656
+        1    |     35/384 |     0       | 500/1113   | 125/192 |    -2187/6784 | 11/84
+        ----------------------------------------------------------------------------------------
+                   35/384 |     0       | 500/1113   | 125/192 |    -2187/6784 | 11/84
+               5179/57600 |     0       | 7571/16695 | 393/640 | -92097/339200 | 187/2100 | 1/40
+        """
+        a21 = +1.0/5.0
+
+        a31 = +3.0/40.0
+        a32 = +9.0/40.0
+
+        a41 = +44.0/45.0
+        a42 = -56.0/15.0
+        a43 = +32.0/9.0
+
+        a51 = +19372.0/6561.0
+        a52 = -25360.0/2187.0
+        a53 = +64448.0/6561.0
+        a54 = -212.0/729.0
+
+        a61 = +9017.0/3168.0
+        a62 = -355.0/33.0
+        a63 = +46732.0/5247.0
+        a64 = +49.0/176.0
+        a65 = -5103.0/18656.0
+
+        a71 = +35.0/384.0
+        a72 = 0.0
+        a73 = +500.0/1113.0
+        a74 = +125.0/192.0
+        a75 = -2187.0/6784.0
+        a76 = +11.0/84.0
+
+        c2 = +1.0 / 5.0
+        c3 = +3.0 / 10.0
+        c4 = +4.0 / 5.0
+        c5 = +8.0 / 9.0
+        c6 = +1.0
+        c7 = +1.0
+
+        b1 = +35.0/384.0
+        b2 = 0.0
+        b3 = +500.0/1113.0
+        b4 = +125.0/192.0
+        b5 = -2187.0/6784.0
+        b6 = +11.0/84.0
+        b7 = 0.0
+
+        b1p = +5179.0/57600.0
+        b2p = +0.0
+        b3p = +7571.0/16695.0
+        b4p = +393.0/640.0
+        b5p = -92097.0/339200.0
+        b6p = +187.0/2100.0
+        b7p = +1.0/40.0
+
+        dt = self.dt
+        F = self.system.derive
+
+        ext_t1 = self.get_external_data(t)
+        ext_t2 = self.get_external_data(t + dt * c2)
+        ext_t3 = self.get_external_data(t + dt * c3)
+        ext_t4 = self.get_external_data(t + dt * c4)
+        ext_t5 = self.get_external_data(t + dt * c5)
+        ext_t6 = self.get_external_data(t + dt * c6)
+
+        k1 = F(t, x0, **ext_t1)
+        k2 = F(t + c2 * dt, x0 + dt * (a21 * k1), **ext_t2)
+        k3 = F(t + c3 * dt, x0 + dt * (a31 * k1 + a32 * k2), **ext_t3)
+        k4 = F(t + c4 * dt, x0 + dt * (a41 * k1 + a42 * k2 + a43 * k3), **ext_t4)
+        k5 = F(t + c5 * dt, x0 + dt * (a51 * k1 + a52 * k2 + a53 * k3 + a54 * k4), **ext_t5)
+        k6 = F(t +      dt, x0 + dt * (a61 * k1 + a62 * k2 + a63 * k3 + a64 * k4 + a65 * k5), **ext_t6)
+        k7 = F(t +      dt, x0 + dt * (a71 * k1 + a72 * k2 + a73 * k3 + a74 * k4 + a75 * k5 + a76 * k6), **ext_t6)
+
+        error = abs((b1-b1p)*k1+(b3-b3p)*k3+(b4-b4p)*k4+(b5-b5p)*k5+
+                    (b6-b6p)*k6+(b7-b7p)*k7)
+
+        x1 = x0 + dt * (b1 * k1 + b3 * k3 + b4 * k4 + b5 * k5 + b6 * k6)
+        return x1
 
 
 
