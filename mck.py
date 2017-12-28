@@ -43,7 +43,7 @@ class MCK():
         # omega = 2 * np.pi * f = 2 * np.pi / t = np.sqrt(self.k/self.m)
         return 2 * np.pi / np.sqrt(self.k/self.m)
 
-    def derive(self, t, x, **kwargs):
+    def derive(self, _, x, **kwargs):
         fext = kwargs.get('fext', 0)
         df = [0.0, 0.0]
         df[0] = x[1]
@@ -155,8 +155,8 @@ class WB1():
         dxdt = [0.0, 0.0, 0.0, 0.0]
         w0 = np.sqrt(self.k / self.m);              # Natural frequency (rad/s)
         # nueps, Aeps, etaeps                       # Degradation functions
-        nueps = self.nu0  + self.delta_nu  * x[3]  # strength degradation function
-        Aeps  = self.A0   - self.delta_A   * x[3]  # degradation function
+        nueps = self.nu0  + self.delta_nu  * x[3]   # strength degradation function
+        Aeps  = self.A0   - self.delta_A   * x[3]   # degradation function
         etaeps = self.eta0 + self.delta_eta * x[3]  # stiffness degradation function
 
         # x1
@@ -170,26 +170,64 @@ class WB1():
         return np.array(dxdt)
 
 
+class VanDerPol():
+    def __init__(self, **kwargs):
+        """
+        x'' = mu * (1 - x**2) * x' - x
+        """
+        self.mu = kwargs.get('m', 1)
+        self.names = ['x', 'v']
+        self.n_states = len(self.names)
+
+    def __repr__(self):
+        return 'Van der Pol -- Mu = {0}'.format(self.mu)
+
+    def derive(self, _, x, **kwargs):
+        df = [0.0, 0.0]
+        df[0] = x[1]
+        df[1] = self.mu * (1 - x[0]**2) * x[1] - x[0]
+        return np.array(df)
+
+
 class Integrator():
-    def __init__(self, system, external_data={}):
+    def __init__(self, system, **kwargs):
         self.system = system
-        self.external_data = external_data
+        self.verbose = kwargs.get('verbose', False)
+        self.external_data = kwargs.get('external_data', {})
         self.dict_algorithm = {'euler': self.euler,
                                'rk22': self.rk22,
                                'rk44': self.rk44,
                                'rk45': self.rk45Fehlberg,
                                'rk45Fehlberg': self.rk45Fehlberg,
                                'rk45CashKarp': self.rk45CashKarp,
-                               'rk45DormandPrince': self.rk45DormandPrince}
+                               'rk45DormandPrince': self.rk45DormandPrince,
+                               'implicit_euler': self.implicit_euler,
+                               'bdf1': self.implicit_euler}
 
     @staticmethod
     def get_integration_algorithms():
-        return ('euler', 'rk22', 'rk44', 'rk45', 'rk45Fehlberg', 'rk45CashKarp', 'rk45DormandPrince')
+        return ('euler', 'rk22', 'rk44', 'rk45', 'rk45Fehlberg', 'rk45CashKarp', 'rk45DormandPrince',
+                'implicit_euler', 'bdf1')
 
     def get_external_data(self, t):
         return {k: np.interp(t, self.external_data[k][:, 0],
                                 self.external_data[k][:, 1]) for k in self.external_data}
 
+    def timeit(method):
+        import time
+        def timed(*args, **kw):
+            verbose = args[0].verbose
+            if verbose:
+                ts = time.time()
+                result = method(*args, **kw)
+                te = time.time()
+                print('{0}  {1:2.2f} ms'.format(method.__name__, (te - ts) * 1000))
+            else:
+                result = method(*args, **kw)
+            return result
+        return timed
+
+    @timeit
     def integ(self, x0, dt=1, t_end=1, t_start=0.0, algorithm='rk44'):
         integration_scheme = self.dict_algorithm[algorithm]
         self.dt = dt
@@ -220,6 +258,26 @@ class Integrator():
         k1 = F(t, x0, **ext_t0)
         x1 = x0 + dt * k1
         return x1
+
+    def implicit_euler(self, t, x0):
+        """
+        Backward Euler method (BDF1)
+
+            y_{{k+1}} = y_{k} + h f(t_{{k+1}}, y_{{k+1}})
+
+          1 |  1
+        --------
+            |  1
+        """
+        import scipy.optimize
+        dt = self.dt
+        F = self.system.derive
+        ext_t1 = self.get_external_data(t + dt)
+        def fun(sol):
+            return x0 + dt * F(t + dt, sol, **ext_t1) - sol
+        res = scipy.optimize.root(fun, x0)
+        return res['x']
+
 
     def rk22(self, t, x0):
         """
@@ -410,6 +468,9 @@ class Integrator():
 
     def rk45DormandPrince(self, t, x0):
         """
+
+        Dormand, J. R. and P. J. Prince, “A family of embedded Runge-Kutta formulae,” J. Comp. Appl. Math., Vol. 6, 1980, pp. 19–26.
+
         Dormand and Prince chose the coefficients of their method to minimize the error of the fifth-order solution. This is the main difference with the Fehlberg method, which was constructed so that the fourth-order solution has a small error. For this reason, the Dormand–Prince method is more suitable when the higher-order solution is used to continue the integration, a practice known as local extrapolation (Shampine 1986; Hairer, Nørsett & Wanner 2008, pp. 178–179).
 
         0    |
@@ -532,6 +593,7 @@ def plot_f_wrt_x(states, **kwargs):
 
 def demo(system=MCK, **kwargs):
     integration_algorithm = kwargs.get('integrator', 'rk44')
+    verbose = kwargs.get('verbose', False)
     m = kwargs.get('m', 1)
     c = kwargs.get('c', 0)
     k = kwargs.get('k', 1)
@@ -546,12 +608,28 @@ def demo(system=MCK, **kwargs):
     d = 1 - np.arange(0, t_stop + dt, dt)/t_stop
     f = 0 * np.sin(2*np.pi*t/(t_stop/50)) * d
     tf = np.concatenate((np.vstack(t), np.vstack(f)),axis=1)
-    integrator = Integrator(instance, external_data={'fext': tf})
+
+    integrator = Integrator(instance, external_data={'fext': tf}, verbose=verbose)
     states = integrator.integ(x0=initial_states, t_end=t_stop, dt=dt,
                               algorithm=integration_algorithm)
     #
     plot_states(states, external_data={'fext': tf}, title=str(instance))
     plot_f_wrt_x(states, external_data={'fext': tf})
+
+
+def get_system_from_name(name):
+    name_lower = name.lower()
+    if  name_lower == 'wb':
+        system = WB
+    elif  name_lower == 'wb1':
+        system = WB1
+    elif  name_lower == 'mck':
+        system = MCK
+    elif  name_lower == 'vanderpol':
+        system = VanDerPol
+    else:
+        raise Exception
+    return system
 
 
 def get_parser():
@@ -569,6 +647,7 @@ def get_parser():
     pa('-k', type=float, help='', default=1.0)
     pa('--x0', type=float, help='Initial position (m)', default=0.0)
     pa('--v0', type=float, help='Initial speed (m/s)', default=0.0)
+    pa('-v','--verbose', help='Display info', action='store_true')
     return parser
 
 
@@ -576,15 +655,7 @@ def main(cli=None):
     parser = get_parser()
     args = parser.parse_args(cli)
     if args.system:
-        if args.system.lower() == 'wb':
-            system = WB
-        elif args.system.lower() == 'wb1':
-            system = WB1
-        elif args.system.lower() == 'mck':
-            system = MCK
-        else:
-            raise Exception
-        demo(system=system,
+        demo(system=get_system_from_name(args.system),
              integrator=args.integrator,
              t_stop=args.tstop,
              dt=args.dt,
@@ -592,7 +663,8 @@ def main(cli=None):
              c=args.c,
              k=args.k,
              x0=args.x0,
-             v0=args.v0)
+             v0=args.v0,
+             verbose=args.verbose)
     else:
         demo()
 
