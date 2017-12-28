@@ -207,96 +207,127 @@ class Integrator():
         return states
 
     def euler(self, t, x0):
+        """
+        explicit euler scheme
+
+          0 |
+        ---------
+            |   1
+        """
         dt = self.dt
         F = self.system.derive
         ext_t0 = self.get_external_data(t)
-        x1 = x0 + dt * F(t, x0, **ext_t0)
+        k1 = F(t, x0, **ext_t0)
+        x1 = x0 + dt * k1
         return x1
 
     def rk22(self, t, x0):
         """
         explicit runge kutta 2*2
+
+          0 |
+        1/2 | 1/2
+        ---------------
+            |   0 |   1
         """
         dt = self.dt
         F = self.system.derive
         ext_t0 = self.get_external_data(t)
-        ext_t1 = self.get_external_data(t + dt/2.0)
-        k1 = dt * F(t, x0, **ext_t0)
-        k2 = dt * F(t + dt/2.0, x0 + k1/2.0, **ext_t1)
-        x1 = x0 + k2
+        ext_t1 = self.get_external_data(t + dt / 2.0)
+        k1 = F(t, x0, **ext_t0)
+        k2 = F(t + dt / 2.0, x0 + dt / 2.0 * k1, **ext_t1)
+        x1 = x0 + dt * k2
         return x1
 
     def rk44(self, t, x0):
         """
         explicit runge kutta 4*4
+
+          0 |
+        1/2 | 1/2
+        1/2 |   0 | 1/2
+          1 |   0 |   0 |   1
+        ---------------------------
+            | 1/6 | 1/3 | 1/3 | 1/6
         """
         dt = self.dt
         F = self.system.derive
         ext_t0 = self.get_external_data(t)
-        ext_t1 = self.get_external_data(t + dt/2.0)
+        ext_t1 = self.get_external_data(t + dt / 2.0)
         ext_t2 = self.get_external_data(t + dt)
-        k1 = dt * F(t, x0, **ext_t0)
-        k2 = dt * F(t + dt/2.0, x0 + k1/2.0, **ext_t1)
-        k3 = dt * F(t + dt/2.0, x0 + k2/2.0, **ext_t1)
-        k4 = dt * F(t + dt, x0 + k3, **ext_t2)
-        x1 = x0 + (k1 + 2.0 * k2 + 2.0 * k3 + k4)/6.0  # + error O(dt^5)
+        k1 = F(t, x0, **ext_t0)
+        k2 = F(t + dt / 2.0, x0 + dt / 2.0 * k1, **ext_t1)
+        k3 = F(t + dt / 2.0, x0 + dt / 2.0 * k2, **ext_t1)
+        k4 = F(t + dt, x0 + dt * k3, **ext_t2)
+        x1 = x0 + dt /6.0 * (k1 + 2.0 * k2 + 2.0 * k3 + k4)  # + error O(dt^5)
         return x1
 
     def rk45Fehlberg(self, t, x0):
         """
         explicit Runge–Kutta–Fehlberg method (with two methods of orders 5 and 4)
+
+            0 |
+          1/4 |        1/4
+          3/8 |      3/32 |       9/32
+        12/13 | 1932/2197 | −7200/2197 |  7296/2197
+            1 |   439/216 |         −8 |   3680/513 |   -845/4104
+          1/2 |     −8/27 |          2 | −3544/2565 |   1859/4104 | −11/40
+        -------------------------------------------------------------------------
+                   16/135 |          0 | 6656/12825 | 28561/56430 |  −9/50 | 2/55
+                   25/216 |          0 |  1408/2565 |   2197/4104 |   −1/5 | 0
+
         """
-        C2 = +1.0/4.0
-        A21 = +1.0/4.0
+        c2 = +1.0/4.0
+        a21 = +1.0/4.0
 
-        C3 = +3.0/8.0
-        A31 = +3.0/32.0
-        A32 = +9.0/32.0
+        c3 = +3.0/8.0
+        a31 = +3.0/32.0
+        a32 = +9.0/32.0
 
-        C4 = +12.0/13.0
-        A41 = +1932.0/2197.0
-        A42 = -7200.0/2197.0
-        A43 = +7296.0/2197.0
+        c4 = +12.0/13.0
+        a41 = +1932.0/2197.0
+        a42 = -7200.0/2197.0
+        a43 = +7296.0/2197.0
 
-        C5 = +1.0
-        A51 = +439.0/216.0
-        A52 = -8.0
-        A53 = +3680.0/513.0
-        A54 = -845.0/4104.0
+        c5 = +1.0
+        a51 = +439.0/216.0
+        a52 = -8.0
+        a53 = +3680.0/513.0
+        a54 = -845.0/4104.0
 
-        C6 = +1.0/2.0
-        A61 = -8.0/27.0
-        A62 = +2.0
-        A63 = -3544.0/2565.0
-        A64 = +1859.0/4104.0
-        A65 = -11.0/40.0
+        c6 = +1.0/2.0
+        a61 = -8.0/27.0
+        a62 = +2.0
+        a63 = -3544.0/2565.0
+        a64 = +1859.0/4104.0
+        a65 = -11.0/40.0
 
-        CY1 = +25.0/216.0
-        CY3 = +1408.0/2565.0
-        CY4 = +2197.0/4104.0
-        CY5 = -1.0/5.0
+        cy1 = +25.0/216.0
+        cy3 = +1408.0/2565.0
+        cy4 = +2197.0/4104.0
+        cy5 = -1.0/5.0
 
-        CE1 = +16.0/135.0-CY1
-        CE3 = +6656.0/12825.0-CY3
-        CE4 = +28561.0/56430.0-CY4
-        CE5 = -9.0/50.0-CY5
-        CE6 = +2.0/55.0
+        ce1 = +16.0/135.0-cy1
+        ce3 = +6656.0/12825.0-cy3
+        ce4 = +28561.0/56430.0-cy4
+        ce5 = -9.0/50.0-cy5
+        ce6 = +2.0/55.0
 
         dt = self.dt
         F = self.system.derive
         ext_t0 = self.get_external_data(t)
-        ext_t2 = self.get_external_data(t + dt * C2)
-        ext_t3 = self.get_external_data(t + dt * C3)
-        ext_t4 = self.get_external_data(t + dt * C4)
-        ext_t5 = self.get_external_data(t + dt * C5)
-        ext_t6 = self.get_external_data(t + dt * C6)
-        k1 = dt * F(t, x0, **ext_t0)
-        k2 = dt * F(t + C2 * dt, x0 + A21 * k1, **ext_t2)
-        k3 = dt * F(t + C3 * dt, x0 + A31 * k1 + A32 * k2, **ext_t3)
-        k4 = dt * F(t + C4 * dt, x0 + A41 * k1 + A42 * k2 + A43 * k3, **ext_t4)
-        k5 = dt * F(t + C5 * dt, x0 + A51 * k1 + A52 * k2 + A53 * k3 + A54 * k4, **ext_t5)
-        x1 = x0 + (CY1 * k1 + CY3 * k3 + CY4 * k4 + CY5 * k5)
-        error = (CE1 * k1 + CE3 * k3 + CE4 * k4 + CE5 * k5 + CE6 * k6)
+        ext_t2 = self.get_external_data(t + dt * c2)
+        ext_t3 = self.get_external_data(t + dt * c3)
+        ext_t4 = self.get_external_data(t + dt * c4)
+        ext_t5 = self.get_external_data(t + dt * c5)
+        ext_t6 = self.get_external_data(t + dt * c6)
+        k1 = F(t, x0, **ext_t0)
+        k2 = F(t + c2 * dt, x0 + dt * (a21 * k1), **ext_t2)
+        k3 = F(t + c3 * dt, x0 + dt * (a31 * k1 + a32 * k2), **ext_t3)
+        k4 = F(t + c4 * dt, x0 + dt * (a41 * k1 + a42 * k2 + a43 * k3), **ext_t4)
+        k5 = F(t + c5 * dt, x0 + dt * (a51 * k1 + a52 * k2 + a53 * k3 + a54 * k4), **ext_t5)
+        x1 = x0 + dt * (cy1 * k1 + cy3 * k3 + cy4 * k4 + cy5 * k5)
+        error = (ce1 * k1 + ce3 * k3 + ce4 * k4 + ce5 * k5 + ce6 * k6)
         return x1
 
     def rk45CashKarp(self, t, x0):
@@ -370,9 +401,9 @@ class Integrator():
         k4 = F(t + c4 * dt, x0 + dt * (a41 * k1 + a42 * k2 + a43 * k3), **ext_t4)
         k5 = F(t + dt, x0 + dt * (a51 * k1 + a52 * k2 + a53 * k3 + a54 * k4), **ext_t5)
         k6 = F(t + c6 * dt, x0 + dt * (a61 * k1 + a62 * k2 + a63 * k3 + a64 * k4 + a65 * k5), **ext_t6)
-
         error = abs((b1-b1p)*k1+(b3-b3p)*k3+(b4-b4p)*k4+(b5-b5p)*k5+
                     (b6-b6p)*k6)
+        print(error)
 
         x1 = x0 + dt * (b1 * k1 + b3 * k3 + b4 * k4 + b5 * k5 + b6 * k6)
         return x1
@@ -525,19 +556,19 @@ def demo(system=MCK, **kwargs):
 
 def get_parser():
     import argparse
-    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser = argparse.ArgumentParser(description='Simulate a mass/damper/spring system')
     pa = parser.add_argument
     pa('-s', '--system', help='Name of the system to simulate (default: will display a demo)',
                          default='')
     pa('-i', '--integrator',
        help='Integration algorithm. Available algortihms are {0}'.format(', '.join(Integrator.get_integration_algorithms())), default='rk44')
-    pa('--dt', type=float, help='', default=0.1)
-    pa('--tstop', type=float, help='', default=10.0)
-    pa('-m', type=float, help='', default=1.0)
+    pa('--dt', type=float, help='Integration time step (s)', default=0.1)
+    pa('--tstop', type=float, help='Stop time (s)', default=10.0)
+    pa('-m', type=float, help='Mass in kg', default=1.0)
     pa('-c', type=float, help='', default=0.0)
     pa('-k', type=float, help='', default=1.0)
-    pa('--x0', type=float, help='', default=0.0)
-    pa('--v0', type=float, help='', default=0.0)
+    pa('--x0', type=float, help='Initial position (m)', default=0.0)
+    pa('--v0', type=float, help='Initial speed (m/s)', default=0.0)
     return parser
 
 
