@@ -395,7 +395,7 @@ class Integrator():
         k4 = F(t + c4 * dt, x0 + dt * (a41 * k1 + a42 * k2 + a43 * k3), **ext_t4)
         k5 = F(t + c5 * dt, x0 + dt * (a51 * k1 + a52 * k2 + a53 * k3 + a54 * k4), **ext_t5)
         x1 = x0 + dt * (cy1 * k1 + cy3 * k3 + cy4 * k4 + cy5 * k5)
-        error = (ce1 * k1 + ce3 * k3 + ce4 * k4 + ce5 * k5 + ce6 * k6)
+        error = dt * (ce1 * k1 + ce3 * k3 + ce4 * k4 + ce5 * k5 + ce6 * k6)
         return x1
 
     def rk45CashKarp(self, t, x0):
@@ -469,10 +469,8 @@ class Integrator():
         k4 = F(t + c4 * dt, x0 + dt * (a41 * k1 + a42 * k2 + a43 * k3), **ext_t4)
         k5 = F(t + dt, x0 + dt * (a51 * k1 + a52 * k2 + a53 * k3 + a54 * k4), **ext_t5)
         k6 = F(t + c6 * dt, x0 + dt * (a61 * k1 + a62 * k2 + a63 * k3 + a64 * k4 + a65 * k5), **ext_t6)
-        error = abs((b1-b1p)*k1+(b3-b3p)*k3+(b4-b4p)*k4+(b5-b5p)*k5+
-                    (b6-b6p)*k6)
-        print(error)
-
+        error = dt * abs((b1-b1p)*k1+(b3-b3p)*k3+(b4-b4p)*k4+(b5-b5p)*k5+
+                         (b6-b6p)*k6)
         x1 = x0 + dt * (b1 * k1 + b3 * k3 + b4 * k4 + b5 * k5 + b6 * k6)
         return x1
 
