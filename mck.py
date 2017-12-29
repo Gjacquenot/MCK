@@ -666,16 +666,16 @@ def demo(system=MCK, **kwargs):
 
 def get_system_from_name(name):
     name_lower = name.lower()
-    if  name_lower == 'wb':
+    if name_lower == 'wb':
         system = WB
-    elif  name_lower == 'wb1':
+    elif name_lower == 'wb1':
         system = WB1
-    elif  name_lower == 'mck':
+    elif name_lower == 'mck':
         system = MCK
-    elif  name_lower == 'vanderpol':
+    elif name_lower == 'vanderpol':
         system = VanDerPol
     else:
-        raise Exception
+        raise Exception('System is not recognized')
     return system
 
 
@@ -686,7 +686,7 @@ def get_parser():
     pa('-s', '--system', help='Name of the system to simulate (default: will display a demo)',
                          default='')
     pa('-i', '--integrator',
-       help='Integration algorithm. Available algortihms are {0}'.format(', '.join(Integrator.get_integration_algorithms())), default='rk44')
+       help='Integration algorithm. Available algorithms are {0}'.format(', '.join(Integrator.get_integration_algorithms())), default='rk44')
     pa('--dt', type=float, help='Integration time step (s)', default=0.1)
     pa('--tstop', type=float, help='Stop time (s)', default=10.0)
     pa('-m', type=float, help='Mass in kg', default=1.0)
