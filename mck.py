@@ -50,6 +50,21 @@ class MCK():
         df[1] = (- self.k * x[0] - self.c * x[1] + fext) / self.m
         return np.array(df)
 
+    def analytical_solution(self, x0, t):
+        """
+        return analytical solution when Fext = 0
+        """
+        # α r**2 + β r + γ=0.
+        # m x'' + c x' + k x
+        m = self.m
+        c = self.c
+        k = self.k
+        # delta can be complex
+        delta = (c**2 - 4 * m * k)**0.5
+        x1 = -c - delta /(2*m)
+        x2 = -c + delta /(2*m)
+        raise NotImplementedError
+
 
 class WB():
     def __init__(self, **kwargs):
@@ -344,6 +359,9 @@ class Integrator():
                    16/135 |          0 | 6656/12825 | 28561/56430 |  −9/50 | 2/55
                    25/216 |          0 |  1408/2565 |   2197/4104 |   −1/5 | 0
 
+        Lower order solution is obtained from the second b line, the first one
+        is used to estimate a higher order solution. The difference of the two
+        gives an estimation of the integration error.
         """
         c2 = +1.0/4.0
         a21 = +1.0/4.0
@@ -560,8 +578,12 @@ class Integrator():
         k6 = F(t +      dt, x0 + dt * (a61 * k1 + a62 * k2 + a63 * k3 + a64 * k4 + a65 * k5), **ext_t6)
         k7 = F(t +      dt, x0 + dt * (a71 * k1 + a72 * k2 + a73 * k3 + a74 * k4 + a75 * k5 + a76 * k6), **ext_t6)
 
-        error = abs((b1-b1p)*k1+(b3-b3p)*k3+(b4-b4p)*k4+(b5-b5p)*k5+
-                    (b6-b6p)*k6+(b7-b7p)*k7)
+        error = dt * abs((b1 - b1p) * k1 +
+                         (b3 - b3p) * k3 +
+                         (b4 - b4p) * k4 +
+                         (b5 - b5p) * k5 +
+                         (b6 - b6p) * k6 +
+                         (b7 - b7p) * k7)
 
         x1 = x0 + dt * (b1 * k1 + b3 * k3 + b4 * k4 + b5 * k5 + b6 * k6)
         return x1
