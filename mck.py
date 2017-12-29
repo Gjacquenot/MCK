@@ -202,12 +202,18 @@ class Integrator():
                                'rk45CashKarp': self.rk45CashKarp,
                                'rk45DormandPrince': self.rk45DormandPrince,
                                'implicit_euler': self.implicit_euler,
-                               'bdf1': self.implicit_euler}
+                               'bdf1': self.implicit_euler,
+                               'scipy_rk23': self.scipy_rk23,
+                               'scipy_rk45': self.scipy_rk45,
+                               'scipy_radau': self.scipy_radau,
+                               'scipy_bdf': self.scipy_bdf,
+                               'scipy_lsoda': self.scipy_lsoda}
 
     @staticmethod
     def get_integration_algorithms():
         return ('euler', 'rk22', 'rk44', 'rk45', 'rk45Fehlberg', 'rk45CashKarp', 'rk45DormandPrince',
-                'implicit_euler', 'bdf1')
+                'implicit_euler', 'bdf1', 'scipy_rk23', 'scipy_rk45',
+                'scipy_radau', 'scipy_bdf', 'scipy_lsoda')
 
     def get_external_data(self, t):
         return {k: np.interp(t, self.external_data[k][:, 0],
@@ -251,6 +257,8 @@ class Integrator():
           0 |
         ---------
             |   1
+
+        https://en.wikipedia.org/wiki/Euler_method
         """
         dt = self.dt
         F = self.system.derive
@@ -268,6 +276,8 @@ class Integrator():
           1 |  1
         --------
             |  1
+
+        https://en.wikipedia.org/wiki/Backward_differentiation_formula
         """
         import scipy.optimize
         dt = self.dt
@@ -558,6 +568,42 @@ class Integrator():
         x1 = x0 + dt * (b1 * k1 + b3 * k3 + b4 * k4 + b5 * k5 + b6 * k6)
         return x1
 
+    def _scipy_ode(self, int_algo, t, x0):
+        dt = self.dt
+        F = self.system.derive
+        res = int_algo(F, t, x0, t + dt)
+        res.step()
+        dense_output = res.dense_output()
+        if self.verbose:
+            print(dense_output.t_min)
+            print(dense_output.t_max)
+        x1 = dense_output(t + dt)
+        return x1
+
+    def scipy_rk23(self, t, x0):
+        import scipy.integrate
+        int_algo = scipy.integrate.RK23
+        return self._scipy_ode(int_algo, t, x0)
+
+    def scipy_rk45(self, t, x0):
+        import scipy.integrate
+        int_algo = scipy.integrate.RK45
+        return self._scipy_ode(int_algo, t, x0)
+
+    def scipy_radau(self, t, x0):
+        import scipy.integrate
+        int_algo = scipy.integrate.Radau
+        return self._scipy_ode(int_algo, t, x0)
+
+    def scipy_bdf(self, t, x0):
+        import scipy.integrate
+        int_algo = scipy.integrate.BDF
+        return self._scipy_ode(int_algo, t, x0)
+
+    def scipy_lsoda(self, t, x0):
+        import scipy.integrate
+        int_algo = scipy.integrate.LSODA
+        return self._scipy_ode(int_algo, t, x0)
 
 
 def plot_states(states, **kwargs):
@@ -568,7 +614,8 @@ def plot_states(states, **kwargs):
     for n in states.dtype.names[1:]:
         ax.plot(states['t'], states[n], label=n)
     for k in external_data:
-        ax.plot(external_data[k][:, 0], external_data[k][:, 1], label=k)
+        if np.sum(np.abs(external_data[k][:, 1])) > 1e-10:
+            ax.plot(external_data[k][:, 0], external_data[k][:, 1], label=k)
     ax.set(xlabel='time (s)', ylabel='states', title=title)
     ax.grid()
     ax.legend(loc='upper right')
