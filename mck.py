@@ -412,6 +412,7 @@ class Integrator():
         k3 = F(t + c3 * dt, x0 + dt * (a31 * k1 + a32 * k2), **ext_t3)
         k4 = F(t + c4 * dt, x0 + dt * (a41 * k1 + a42 * k2 + a43 * k3), **ext_t4)
         k5 = F(t + c5 * dt, x0 + dt * (a51 * k1 + a52 * k2 + a53 * k3 + a54 * k4), **ext_t5)
+        k6 = F(t + c6 * dt, x0 + dt * (a61 * k1 + a62 * k2 + a63 * k3 + a64 * k4 + a65 * k5), **ext_t6)
         x1 = x0 + dt * (cy1 * k1 + cy3 * k3 + cy4 * k4 + cy5 * k5)
         error = dt * (ce1 * k1 + ce3 * k3 + ce4 * k4 + ce5 * k5 + ce6 * k6)
         return x1
@@ -497,7 +498,13 @@ class Integrator():
 
         Dormand, J. R. and P. J. Prince, “A family of embedded Runge-Kutta formulae,” J. Comp. Appl. Math., Vol. 6, 1980, pp. 19–26.
 
-        Dormand and Prince chose the coefficients of their method to minimize the error of the fifth-order solution. This is the main difference with the Fehlberg method, which was constructed so that the fourth-order solution has a small error. For this reason, the Dormand–Prince method is more suitable when the higher-order solution is used to continue the integration, a practice known as local extrapolation (Shampine 1986; Hairer, Nørsett & Wanner 2008, pp. 178–179).
+        Dormand and Prince chose the coefficients of their method to minimize
+        the error of the fifth-order solution. This is the main difference with
+        the Fehlberg method, which was constructed so that the fourth-order
+        solution has a small error. For this reason, the Dormand–Prince method
+        is more suitable when the higher-order solution is used to continue the
+        integration, a practice known as local extrapolation
+        (Shampine 1986; Hairer, Nørsett & Wanner 2008, pp. 178–179).
 
         0    |
         1/5  |        1/5
@@ -630,6 +637,7 @@ def plot_states(states, **kwargs):
     import matplotlib.pyplot as plt
     external_data = kwargs.get('external_data', {})
     title = kwargs.get('title', 'State variables')
+    output_figname = kwargs.get('output_figname', 'test.png')
     fig, ax = plt.subplots()
     for n in states.dtype.names[1:]:
         ax.plot(states['t'], states[n], label=n)
@@ -639,7 +647,8 @@ def plot_states(states, **kwargs):
     ax.set(xlabel='time (s)', ylabel='states', title=title)
     ax.grid()
     ax.legend(loc='upper right')
-    # fig.savefig("test.png")
+    if output_figname:
+        fig.savefig(output_figname)
     plt.show()
     return fig
 
@@ -647,6 +656,7 @@ def plot_states(states, **kwargs):
 def plot_f_wrt_x(states, **kwargs):
     import matplotlib.pyplot as plt
     external_data = kwargs.get('external_data',{})
+    output_figname = kwargs.get('output_figname', 'test_F_X.png')
     fig, ax = plt.subplots()
     n = len(states['x'])
     ax.plot(external_data['fext'][:,1], states['x'], label='x = F')
@@ -654,34 +664,9 @@ def plot_f_wrt_x(states, **kwargs):
     ax.set(xlabel='F (N)', ylabel='x (m)', title='State variables')
     ax.grid()
     ax.legend(loc='upper right')
-    # fig.savefig("test.png")
+    if output_figname:
+        fig.savefig(output_figname)
     plt.show()
-
-
-def demo(system=MCK, **kwargs):
-    integration_algorithm = kwargs.get('integrator', 'rk44')
-    verbose = kwargs.get('verbose', False)
-    m = kwargs.get('m', 1)
-    c = kwargs.get('c', 0)
-    k = kwargs.get('k', 1)
-    t_stop = kwargs.get('t_stop', 1000)
-    dt = kwargs.get('dt', 0.1)
-    x0 = kwargs.get('x0', 0.0)
-    v0 = kwargs.get('v0', 0.0)
-    initial_states = [x0, v0]
-    instance = system(m=m, c=c, k=k)
-    #
-    t = np.arange(0, t_stop + dt, dt)
-    d = 1 - np.arange(0, t_stop + dt, dt)/t_stop
-    f = 0 * np.sin(2*np.pi*t/(t_stop/50)) * d
-    tf = np.concatenate((np.vstack(t), np.vstack(f)),axis=1)
-
-    integrator = Integrator(instance, external_data={'fext': tf}, verbose=verbose)
-    states = integrator.integ(x0=initial_states, t_end=t_stop, dt=dt,
-                              algorithm=integration_algorithm)
-    #
-    plot_states(states, external_data={'fext': tf}, title=str(instance))
-    plot_f_wrt_x(states, external_data={'fext': tf})
 
 
 def get_system_from_name(name):
@@ -699,19 +684,52 @@ def get_system_from_name(name):
     return system
 
 
+def demo(system_name='MCK', **kwargs):
+    integration_algorithm = kwargs.get('integrator', 'rk44')
+    verbose = kwargs.get('verbose', False)
+    m = kwargs.get('m', 1)
+    c = kwargs.get('c', 0)
+    k = kwargs.get('k', 1)
+    t_stop = kwargs.get('t_stop', 1000)
+    dt = kwargs.get('dt', 0.1)
+    x0 = kwargs.get('x0', 0.0)
+    v0 = kwargs.get('v0', 0.0)
+    initial_states = [x0, v0]
+    system = get_system_from_name(system_name)
+    instance = system(m=m, c=c, k=k)
+    #
+    t = np.arange(0, t_stop + dt, dt)
+    d = 1 - np.arange(0, t_stop + dt, dt)/t_stop
+    f = 0.1 * np.sin(2*np.pi*t/(t_stop/50)) * d
+    tf = np.concatenate((np.vstack(t), np.vstack(f)),axis=1)
+
+    integrator = Integrator(instance, external_data={'fext': tf}, verbose=verbose)
+    states = integrator.integ(x0=initial_states, t_end=t_stop, dt=dt,
+                              algorithm=integration_algorithm)
+    #
+    plot_states(states, external_data={'fext': tf}, title=str(instance), output_figname=system_name + '.png')
+    plot_f_wrt_x(states, external_data={'fext': tf}, output_figname=system_name + '_F_X.png')
+
+
 def get_parser():
     import argparse
-    parser = argparse.ArgumentParser(description='Simulate a mass/damper/spring system')
+    default_m = 1.0
+    default_c = 0.0
+    default_k = 1.0
+    default_dt = 0.1
+    default_tstop = 10.0
+    parser = argparse.ArgumentParser(description='Simulate a mass/damper/spring system with eventually Wen-Bouc models')
     pa = parser.add_argument
-    pa('-s', '--system', help='Name of the system to simulate (default: will display a demo)',
+    pa('-s', '--system', help="Name of the system to simulate (default: will display a demo). "+
+                              "It can be 'MCK', 'WB', 'WB1', 'VanDerPol'",
                          default='')
     pa('-i', '--integrator',
        help='Integration algorithm. Available algorithms are {0}'.format(', '.join(Integrator.get_integration_algorithms())), default='rk44')
-    pa('--dt', type=float, help='Integration time step (s)', default=0.1)
-    pa('--tstop', type=float, help='Stop time (s)', default=10.0)
-    pa('-m', type=float, help='Mass in kg', default=1.0)
-    pa('-c', type=float, help='', default=0.0)
-    pa('-k', type=float, help='', default=1.0)
+    pa('--dt', type=float, help='Integration time step (s). Default is {0}'.format(default_dt), default=default_dt)
+    pa('--tstop', type=float, help='Stop time (s). Default is {0}'.format(default_tstop), default=default_tstop)
+    pa('-m', type=float, help='Mass in kg. Default is {0}'.format(default_m), default=default_m)
+    pa('-c', type=float, help='Damping value (N/m\'). Default is {0}'.format(default_c), default=default_c)
+    pa('-k', type=float, help='Spring value (N/m). Default is {0}'.format(default_k), default=default_k)
     pa('--x0', type=float, help='Initial position (m)', default=0.0)
     pa('--v0', type=float, help='Initial speed (m/s)', default=0.0)
     pa('-v','--verbose', help='Display info', action='store_true')
@@ -722,7 +740,7 @@ def main(cli=None):
     parser = get_parser()
     args = parser.parse_args(cli)
     if args.system:
-        demo(system=get_system_from_name(args.system),
+        demo(system_name=args.system,
              integrator=args.integrator,
              t_stop=args.tstop,
              dt=args.dt,
