@@ -1,26 +1,44 @@
 # -*- coding: utf-8 -*-
-
+#
+# This script contains some algorithms to simulate a mass / spring / damper system
+# with an hysteresis model (Bouc-Wen model).
+#
+# It contains a class Integrator with several numerical integration algorithms
+# and some numpy integration algorithms.
+#
+# Starts with: python mck.py --help
+#
+# References are:
+#
 # 1
 # Gilberto A. Ortiz, Diego A. Alvarez, Daniel Bedoya-Ruiz.
 # "Identification of Bouc-Wen type models using multi-objective optimization algorithms".
 # Computers & Structures. Vol. 114-115. pp. 121-132. 2013.
 # https://sourceforge.net/projects/boucwenbabernoo/?source=typ_redirect
-
+#
 # 2
 # Introduction of D parameter
 # Dynamic properties of the hysteretic Bouc-Wen model
 # doi:10.1016/j.sysconle.2006.09.001
 # ftp://ftp.ecn.purdue.edu/ayhan/Bismarck/Dynamic%20properties%20of%20the%20hysteretic%20Bouc-Wen%20model.pdf
-
+#
 # 3
 # https://github.com/rock-control/control-hysteresis_model/tree/master/coupling_calibration
-
+#
 # 4
 # https://icesd.hi.is/wp-content/uploads/2017/06/AID_22.pdf
 
+
 import numpy as np
 
+
 class MCK():
+    """
+    Describe a
+    M : Mass
+    C : Damper
+    K : Spring
+    """
     def __init__(self, **kwargs):
         # m x'' + c x' + k x = Fext(t)
         #   x'' + c/m x' + k/m x = Fext(t)/m
@@ -514,8 +532,8 @@ class Integrator():
         1    |  9017/3168 |     -355/33 | 46732/5247 | 49/176  |   -5103/18656
         1    |     35/384 |     0       | 500/1113   | 125/192 |    -2187/6784 | 11/84
         ----------------------------------------------------------------------------------------
-                   35/384 |     0       | 500/1113   | 125/192 |    -2187/6784 | 11/84
-               5179/57600 |     0       | 7571/16695 | 393/640 | -92097/339200 | 187/2100 | 1/40
+             |     35/384 |     0       | 500/1113   | 125/192 |    -2187/6784 | 11/84
+             | 5179/57600 |     0       | 7571/16695 | 393/640 | -92097/339200 | 187/2100 | 1/40
         """
         a21 = +1.0/5.0
 
