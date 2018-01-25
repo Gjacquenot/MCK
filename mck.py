@@ -59,7 +59,7 @@ class MCK():
 
     def get_period(self):
         # omega = 2 * np.pi * f = 2 * np.pi / t = np.sqrt(self.k/self.m)
-        return 2 * np.pi / np.sqrt(self.k/self.m)
+        return 2 * np.pi / np.sqrt(self.k / self.m)
 
     def derive(self, _, x, **kwargs):
         fext = kwargs.get('fext', 0)
@@ -79,8 +79,8 @@ class MCK():
         k = self.k
         # delta can be complex
         delta = (c**2 - 4 * m * k)**0.5
-        x1 = -c - delta /(2*m)
-        x2 = -c + delta /(2*m)
+        x1 = -c - delta / (2 * m)
+        x2 = -c + delta / (2 * m)
         raise NotImplementedError
 
 
@@ -110,9 +110,9 @@ class WB():
 
     def __repr__(self):
         return 'M={0} C={1} K={2} α={3} D={4} A={5} β={6} γ={7} n={8}'.format(
-                    self.m, self.c, self.k,
-                    self.alpha, self.D, self.A,
-                    self.beta, self.gamma, self.n)
+               self.m, self.c, self.k,
+               self.alpha, self.D, self.A,
+               self.beta, self.gamma, self.n)
 
     def derive(self, t, x, **kwargs):
 
@@ -131,9 +131,9 @@ class WB():
         # exci - 2*xi*w0*x1 - alpha*(w0^2)*x0 - (1-alpha)*(w0^2)*x2;
         dxdt[1] = (fext - self.c * x[1] - self.k * (self.alpha * x[0] + (1 - self.alpha) * self.D * x[2])) / self.m
         # h*( x1 - nueps*(beta*abs(x1)*(abs(z)^(n-1))*z + gamma*x1*(abs(z)^n) ) ) / etaeps;
-        dxdt[2] = 1/self.D * (self.A * x[1] - self.beta * np.abs(x[1]) * np.abs(x[2]) ** (self.n - 1) * x[2] - self.gamma * x[1] * np.abs(x[2]) ** self.n)
+        dxdt[2] = 1.0 / self.D * (self.A * x[1] - self.beta * np.abs(x[1]) * np.abs(x[2]) ** (self.n - 1) * x[2] - self.gamma * x[1] * np.abs(x[2]) ** self.n)
         # (1-alpha)*(w0^2)*x1*z;
-        dxdt[3] = (1-self.alpha) * self.k / self.m * x[1] * x[2]
+        dxdt[3] = (1.0 - self.alpha) * self.k / self.m * x[1] * x[2]
         return np.array(dxdt)
 
 
@@ -158,7 +158,6 @@ class WB1():
         self.gamma = kwargs.get('gamma', -1.5)
         self.n = kwargs.get('n', 2)
 
-
         self.nu0 = kwargs.get('nu0', 0.0)               # strength degradation
         self.A0 = kwargs.get('A0', 0.0)                 # hysteresis amplitude
         self.eta0 = kwargs.get('eta0', 1.0)             # stiffness degradation
@@ -171,9 +170,9 @@ class WB1():
 
     def __repr__(self):
         return 'M={0} C={1} K={2} α={3} D={4} A={5} β={6} γ={7} n={8}'.format(
-                    self.m, self.c, self.k,
-                    self.alpha, self.D, self.A,
-                    self.beta, self.gamma, self.n)
+               self.m, self.c, self.k,
+               self.alpha, self.D, self.A,
+               self.beta, self.gamma, self.n)
 
     def derive(self, t, x, **kwargs):
 
@@ -186,10 +185,10 @@ class WB1():
 
         fext = kwargs.get('fext', 0)
         dxdt = [0.0, 0.0, 0.0, 0.0]
-        w0 = np.sqrt(self.k / self.m);              # Natural frequency (rad/s)
+        w0 = np.sqrt(self.k / self.m)               # Natural frequency (rad/s)
         # nueps, Aeps, etaeps                       # Degradation functions
-        nueps = self.nu0  + self.delta_nu  * x[3]   # strength degradation function
-        Aeps  = self.A0   - self.delta_A   * x[3]   # degradation function
+        nueps = self.nu0 + self.delta_nu * x[3]     # strength degradation function
+        Aeps = self.A0 - self.delta_A * x[3]        # degradation function
         etaeps = self.eta0 + self.delta_eta * x[3]  # stiffness degradation function
 
         # x1
@@ -197,9 +196,9 @@ class WB1():
         # exci - 2*xi*w0*x1 - alpha*(w0^2)*x0 - (1-alpha)*(w0^2)*x2;
         dxdt[1] = (fext - self.c * x[1] - self.k * (self.alpha * x[0] + (1 - self.alpha) * self.D * x[2])) / self.m
         # h*( x1 - nueps*(beta*abs(x1)*(abs(z)^(n-1))*z + gamma*x1*(abs(z)^n) ) ) / etaeps;
-        dxdt[2] = 1/self.D * (Aeps * x[1] - nueps * (self.beta * np.abs(x[1]) * np.abs(x[2]) ** (self.n-1) * x[2] + self.gamma * x[1] * np.abs(x[2]) ** self.n)) / etaeps
+        dxdt[2] = 1.0 / self.D * (Aeps * x[1] - nueps * (self.beta * np.abs(x[1]) * np.abs(x[2]) ** (self.n - 1) * x[2] + self.gamma * x[1] * np.abs(x[2]) ** self.n)) / etaeps
         # (1-alpha)*(w0^2)*x1*z;
-        dxdt[3] = (1-self.alpha) * self.k / self.m * x[1] * x[2]
+        dxdt[3] = (1.0 - self.alpha) * self.k / self.m * x[1] * x[2]
         return np.array(dxdt)
 
 
@@ -249,11 +248,13 @@ class Integrator():
                 'scipy_radau', 'scipy_bdf', 'scipy_lsoda')
 
     def get_external_data(self, t):
-        return {k: np.interp(t, self.external_data[k][:, 0],
-                                self.external_data[k][:, 1]) for k in self.external_data}
+        return {k: np.interp(t,
+                             self.external_data[k][:, 0],
+                             self.external_data[k][:, 1]) for k in self.external_data}
 
     def timeit(method):
         import time
+
         def timed(*args, **kw):
             verbose = args[0].verbose
             if verbose:
@@ -280,7 +281,7 @@ class Integrator():
             x0 = integration_scheme(t=t, x0=x0)
             states[i + 1, 0] = t
             states[i + 1, 1:] = x0
-        states = np.rec.fromrecords(states, names = 't, ' + ', '.join(self.system.names))
+        states = np.rec.fromrecords(states, names='t, ' + ', '.join(self.system.names))
         return states
 
     def euler(self, t, x0):
@@ -316,11 +317,11 @@ class Integrator():
         dt = self.dt
         F = self.system.derive
         ext_t1 = self.get_external_data(t + dt)
+
         def fun(sol):
             return x0 + dt * F(t + dt, sol, **ext_t1) - sol
         res = scipy.optimize.root(fun, x0)
         return res['x']
-
 
     def rk22(self, t, x0):
         """
@@ -360,7 +361,7 @@ class Integrator():
         k2 = F(t + dt / 2.0, x0 + dt / 2.0 * k1, **ext_t1)
         k3 = F(t + dt / 2.0, x0 + dt / 2.0 * k2, **ext_t1)
         k4 = F(t + dt, x0 + dt * k3, **ext_t2)
-        x1 = x0 + dt /6.0 * (k1 + 2.0 * k2 + 2.0 * k3 + k4)  # + error O(dt^5)
+        x1 = x0 + dt / 6.0 * (k1 + 2.0 * k2 + 2.0 * k3 + k4)  # + error O(dt^5)
         return x1
 
     def rk45Fehlberg(self, t, x0):
@@ -381,41 +382,41 @@ class Integrator():
         is used to estimate a higher order solution. The difference of the two
         gives an estimation of the integration error.
         """
-        c2 = +1.0/4.0
-        a21 = +1.0/4.0
+        c2 = +1.0 / 4.0
+        a21 = +1.0 / 4.0
 
-        c3 = +3.0/8.0
-        a31 = +3.0/32.0
-        a32 = +9.0/32.0
+        c3 = +3.0 / 8.0
+        a31 = +3.0 / 32.0
+        a32 = +9.0 / 32.0
 
-        c4 = +12.0/13.0
-        a41 = +1932.0/2197.0
-        a42 = -7200.0/2197.0
-        a43 = +7296.0/2197.0
+        c4 = +12.0 / 13.0
+        a41 = +1932.0 / 2197.0
+        a42 = -7200.0 / 2197.0
+        a43 = +7296.0 / 2197.0
 
         c5 = +1.0
-        a51 = +439.0/216.0
+        a51 = +439.0 / 216.0
         a52 = -8.0
-        a53 = +3680.0/513.0
-        a54 = -845.0/4104.0
+        a53 = +3680.0 / 513.0
+        a54 = -845.0 / 4104.0
 
-        c6 = +1.0/2.0
-        a61 = -8.0/27.0
+        c6 = +1.0 / 2.0
+        a61 = -8.0 / 27.0
         a62 = +2.0
-        a63 = -3544.0/2565.0
-        a64 = +1859.0/4104.0
-        a65 = -11.0/40.0
+        a63 = -3544.0 / 2565.0
+        a64 = +1859.0 / 4104.0
+        a65 = -11.0 / 40.0
 
-        cy1 = +25.0/216.0
-        cy3 = +1408.0/2565.0
-        cy4 = +2197.0/4104.0
-        cy5 = -1.0/5.0
+        cy1 = +25.0 / 216.0
+        cy3 = +1408.0 / 2565.0
+        cy4 = +2197.0 / 4104.0
+        cy5 = -1.0 / 5.0
 
-        ce1 = +16.0/135.0-cy1
-        ce3 = +6656.0/12825.0-cy3
-        ce4 = +28561.0/56430.0-cy4
-        ce5 = -9.0/50.0-cy5
-        ce6 = +2.0/55.0
+        ce1 = +16.0 / 135.0 - cy1
+        ce3 = +6656.0 / 12825.0 - cy3
+        ce4 = +28561.0 / 56430.0 - cy4
+        ce5 = -9.0 / 50.0 - cy5
+        ce6 = +2.0 / 55.0
 
         dt = self.dt
         F = self.system.derive
@@ -450,45 +451,45 @@ class Integrator():
              | 2825/27648 |       0 | 18575/48384 |  13525/55296 | 277/14336 | 1/4
         """
 
-        c2 = 1.0/5.0
-        c3 = 3.0/10.0
-        c4 = 3.0/5.0
+        c2 = 1.0 / 5.0
+        c3 = 3.0 / 10.0
+        c4 = 3.0 / 5.0
         c5 = 1.0
-        c6 = 7.0/8.0
+        c6 = 7.0 / 8.0
 
-        a21 = +1.0/5.0
+        a21 = +1.0 / 5.0
 
-        a31 = +3.0/40.0
-        a32 = +9.0/40.0
+        a31 = +3.0 / 40.0
+        a32 = +9.0 / 40.0
 
-        a41 = +3.0/10.0
-        a42 = -9.0/10.0
-        a43 = +6.0/5.0
+        a41 = +3.0 / 10.0
+        a42 = -9.0 / 10.0
+        a43 = +6.0 / 5.0
 
-        a51 = -11.0/54.0
-        a52 = +5.0/2.0
-        a53 = -70.0/27.0
-        a54 = +35.0/27.0
+        a51 = -11.0 / 54.0
+        a52 = +5.0 / 2.0
+        a53 = -70.0 / 27.0
+        a54 = +35.0 / 27.0
 
-        a61 = +1631.0/55296.0
-        a62 = +175.0/512.0
-        a63 = +575.0/13824.0
-        a64 = +44275.0/110592.0
-        a65 = +253.0/4096.0
+        a61 = +1631.0 / 55296.0
+        a62 = +175.0 / 512.0
+        a63 = +575.0 / 13824.0
+        a64 = +44275.0 / 110592.0
+        a65 = +253.0 / 4096.0
 
-        b1 = 37.0/378.0
+        b1 = 37.0 / 378.0
         b2 = 0.0
-        b3 = 250.0/621.0
-        b4 = 125.0/594.0
+        b3 = 250.0 / 621.0
+        b4 = 125.0 / 594.0
         b5 = 0.0
-        b6 = 512.0/1771.0
+        b6 = 512.0 / 1771.0
 
-        b1p = 2825.0/27648.0
+        b1p = 2825.0 / 27648.0
         b2p = 0.0
-        b3p = 18575.0/48384.0
-        b4p = 13525.0/55296.0
-        b5p = 277.0/14336.0
-        b6p = 1.0/4.0
+        b3p = 18575.0 / 48384.0
+        b4p = 13525.0 / 55296.0
+        b5p = 277.0 / 14336.0
+        b6p = 1.0 / 4.0
 
         dt = self.dt
         F = self.system.derive
@@ -506,8 +507,11 @@ class Integrator():
         k4 = F(t + c4 * dt, x0 + dt * (a41 * k1 + a42 * k2 + a43 * k3), **ext_t4)
         k5 = F(t + dt, x0 + dt * (a51 * k1 + a52 * k2 + a53 * k3 + a54 * k4), **ext_t5)
         k6 = F(t + c6 * dt, x0 + dt * (a61 * k1 + a62 * k2 + a63 * k3 + a64 * k4 + a65 * k5), **ext_t6)
-        error = dt * abs((b1-b1p)*k1+(b3-b3p)*k3+(b4-b4p)*k4+(b5-b5p)*k5+
-                         (b6-b6p)*k6)
+        error = dt * abs((b1 - b1p) * k1 +
+                         (b3 - b3p) * k3 +
+                         (b4 - b4p) * k4 +
+                         (b5 - b5p) * k5 +
+                         (b6 - b6p) * k6)
         x1 = x0 + dt * (b1 * k1 + b3 * k3 + b4 * k4 + b5 * k5 + b6 * k6)
         return x1
 
@@ -535,32 +539,32 @@ class Integrator():
              |     35/384 |     0       | 500/1113   | 125/192 |    -2187/6784 | 11/84
              | 5179/57600 |     0       | 7571/16695 | 393/640 | -92097/339200 | 187/2100 | 1/40
         """
-        a21 = +1.0/5.0
+        a21 = +1.0 / 5.0
 
-        a31 = +3.0/40.0
-        a32 = +9.0/40.0
+        a31 = +3.0 / 40.0
+        a32 = +9.0 / 40.0
 
-        a41 = +44.0/45.0
-        a42 = -56.0/15.0
-        a43 = +32.0/9.0
+        a41 = +44.0 / 45.0
+        a42 = -56.0 / 15.0
+        a43 = +32.0 / 9.0
 
-        a51 = +19372.0/6561.0
-        a52 = -25360.0/2187.0
-        a53 = +64448.0/6561.0
-        a54 = -212.0/729.0
+        a51 = +19372.0 / 6561.0
+        a52 = -25360.0 / 2187.0
+        a53 = +64448.0 / 6561.0
+        a54 = -212.0 / 729.0
 
-        a61 = +9017.0/3168.0
-        a62 = -355.0/33.0
-        a63 = +46732.0/5247.0
-        a64 = +49.0/176.0
-        a65 = -5103.0/18656.0
+        a61 = +9017.0 / 3168.0
+        a62 = -355.0 / 33.0
+        a63 = +46732.0 / 5247.0
+        a64 = +49.0 / 176.0
+        a65 = -5103.0 / 18656.0
 
-        a71 = +35.0/384.0
+        a71 = +35.0 / 384.0
         a72 = 0.0
-        a73 = +500.0/1113.0
-        a74 = +125.0/192.0
-        a75 = -2187.0/6784.0
-        a76 = +11.0/84.0
+        a73 = +500.0 / 1113.0
+        a74 = +125.0 / 192.0
+        a75 = -2187.0 / 6784.0
+        a76 = +11.0 / 84.0
 
         c2 = +1.0 / 5.0
         c3 = +3.0 / 10.0
@@ -569,21 +573,21 @@ class Integrator():
         c6 = +1.0
         c7 = +1.0
 
-        b1 = +35.0/384.0
+        b1 = +35.0 / 384.0
         b2 = 0.0
-        b3 = +500.0/1113.0
-        b4 = +125.0/192.0
-        b5 = -2187.0/6784.0
-        b6 = +11.0/84.0
+        b3 = +500.0 / 1113.0
+        b4 = +125.0 / 192.0
+        b5 = -2187.0 / 6784.0
+        b6 = +11.0 / 84.0
         b7 = 0.0
 
-        b1p = +5179.0/57600.0
+        b1p = +5179.0 / 57600.0
         b2p = +0.0
-        b3p = +7571.0/16695.0
-        b4p = +393.0/640.0
-        b5p = -92097.0/339200.0
-        b6p = +187.0/2100.0
-        b7p = +1.0/40.0
+        b3p = +7571.0 / 16695.0
+        b4p = +393.0 / 640.0
+        b5p = -92097.0 / 339200.0
+        b6p = +187.0 / 2100.0
+        b7p = +1.0 / 40.0
 
         dt = self.dt
         F = self.system.derive
@@ -600,8 +604,8 @@ class Integrator():
         k3 = F(t + c3 * dt, x0 + dt * (a31 * k1 + a32 * k2), **ext_t3)
         k4 = F(t + c4 * dt, x0 + dt * (a41 * k1 + a42 * k2 + a43 * k3), **ext_t4)
         k5 = F(t + c5 * dt, x0 + dt * (a51 * k1 + a52 * k2 + a53 * k3 + a54 * k4), **ext_t5)
-        k6 = F(t +      dt, x0 + dt * (a61 * k1 + a62 * k2 + a63 * k3 + a64 * k4 + a65 * k5), **ext_t6)
-        k7 = F(t +      dt, x0 + dt * (a71 * k1 + a72 * k2 + a73 * k3 + a74 * k4 + a75 * k5 + a76 * k6), **ext_t6)
+        k6 = F(t + dt, x0 + dt * (a61 * k1 + a62 * k2 + a63 * k3 + a64 * k4 + a65 * k5), **ext_t6)
+        k7 = F(t + dt, x0 + dt * (a71 * k1 + a72 * k2 + a73 * k3 + a74 * k4 + a75 * k5 + a76 * k6), **ext_t6)
 
         error = dt * abs((b1 - b1p) * k1 +
                          (b3 - b3p) * k3 +
@@ -673,12 +677,12 @@ def plot_states(states, **kwargs):
 
 def plot_f_wrt_x(states, **kwargs):
     import matplotlib.pyplot as plt
-    external_data = kwargs.get('external_data',{})
+    external_data = kwargs.get('external_data', {})
     output_figname = kwargs.get('output_figname', 'test_F_X.png')
     fig, ax = plt.subplots()
     n = len(states['x'])
-    ax.plot(external_data['fext'][:,1], states['x'], label='x = F')
-    ax.plot(external_data['fext'][(2*n//5):n,1], states['x'][(2*n//5):n])
+    ax.plot(external_data['fext'][:, 1], states['x'], label='x = F')
+    ax.plot(external_data['fext'][(2 * n // 5): n, 1], states['x'][(2 * n // 5): n])
     ax.set(xlabel='F (N)', ylabel='x (m)', title='State variables')
     ax.grid()
     ax.legend(loc='upper right')
@@ -717,9 +721,9 @@ def demo(system_name='MCK', **kwargs):
     instance = system(m=m, c=c, k=k)
     #
     t = np.arange(0, t_stop + dt, dt)
-    d = 1 - np.arange(0, t_stop + dt, dt)/t_stop
-    f = 0.1 * np.sin(2*np.pi*t/(t_stop/50)) * d
-    tf = np.concatenate((np.vstack(t), np.vstack(f)),axis=1)
+    d = 1 - np.arange(0, t_stop + dt, dt) / t_stop
+    f = 0.1 * np.sin(2 * np.pi * t / (t_stop / 50)) * d
+    tf = np.concatenate((np.vstack(t), np.vstack(f)), axis=1)
 
     integrator = Integrator(instance, external_data={'fext': tf}, verbose=verbose)
     states = integrator.integ(x0=initial_states, t_end=t_stop, dt=dt,
@@ -738,9 +742,10 @@ def get_parser():
     default_tstop = 10.0
     parser = argparse.ArgumentParser(description='Simulate a mass/damper/spring system with eventually Wen-Bouc models')
     pa = parser.add_argument
-    pa('-s', '--system', help="Name of the system to simulate (default: will display a demo). "+
-                              "It can be 'MCK', 'WB', 'WB1', 'VanDerPol'",
-                         default='')
+    pa('-s', '--system',
+       help="Name of the system to simulate (default: will display a demo). " +
+            "It can be 'MCK', 'WB', 'WB1', 'VanDerPol'",
+       default='')
     pa('-i', '--integrator',
        help='Integration algorithm. Available algorithms are {0}'.format(', '.join(Integrator.get_integration_algorithms())), default='rk44')
     pa('--dt', type=float, help='Integration time step (s). Default is {0}'.format(default_dt), default=default_dt)
@@ -750,7 +755,7 @@ def get_parser():
     pa('-k', type=float, help='Spring value (N/m). Default is {0}'.format(default_k), default=default_k)
     pa('--x0', type=float, help='Initial position (m)', default=0.0)
     pa('--v0', type=float, help='Initial speed (m/s)', default=0.0)
-    pa('-v','--verbose', help='Display info', action='store_true')
+    pa('-v', '--verbose', help='Display info', action='store_true')
     return parser
 
 
@@ -772,5 +777,5 @@ def main(cli=None):
         demo()
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     main()
