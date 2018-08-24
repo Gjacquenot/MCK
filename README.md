@@ -26,10 +26,10 @@ References are:
     doi:10.1016/j.sysconle.2006.09.001
     ftp://ftp.ecn.purdue.edu/ayhan/Bismarck/Dynamic%20properties%20of%20the%20hysteretic%20Bouc-Wen%20model.pdf
 
-3
+- 3
 
     https://github.com/rock-control/control-hysteresis_model/tree/master/coupling_calibration
 
-4
+- 4
 
     https://icesd.hi.is/wp-content/uploads/2017/06/AID_22.pdf
